@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { analyzePaper } from '../services/geminiService';
-import { DialogueLine } from '../types';
+import { DialogueLine, GameSettings } from '../types';
 
 interface UploadScreenProps {
   onScriptGenerated: (script: DialogueLine[], title: string) => void;
   onBack: () => void;
+  settings: GameSettings;
 }
 
-export const UploadScreen: React.FC<UploadScreenProps> = ({ onScriptGenerated, onBack }) => {
+export const UploadScreen: React.FC<UploadScreenProps> = ({ onScriptGenerated, onBack, settings }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onScriptGenerated, o
       // Simulate phases of "thinking" for better UX
       const thinkingTimer = setTimeout(() => setLoadingText("Consulting the spirits (Gemini Thinking)..."), 2000);
       
-      const result = await analyzePaper(file);
+      const result = await analyzePaper(file, settings);
       
       clearTimeout(thinkingTimer);
       setLoadingText("Transcribing logic to magic...");

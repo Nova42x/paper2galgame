@@ -10,6 +10,11 @@ export interface PaperAnalysisResponse {
   script: DialogueLine[];
 }
 
+export interface GameSettings {
+  detailLevel: 'brief' | 'detailed' | 'academic';
+  personality: 'tsundere' | 'gentle' | 'strict';
+}
+
 export enum GameState {
   IDLE,
   PROCESSING,

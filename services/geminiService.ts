@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { PaperAnalysisResponse, DialogueLine } from "../types";
+import { PaperAnalysisResponse, DialogueLine, GameSettings } from "../types";
 
 // Helper to convert File to Base64
 const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: string; mimeType: string } }> => {
@@ -20,34 +20,52 @@ const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: s
   });
 };
 
-export const analyzePaper = async (file: File): Promise<PaperAnalysisResponse> => {
+export const analyzePaper = async (file: File, settings: GameSettings): Promise<PaperAnalysisResponse> => {
   if (!process.env.API_KEY) {
     throw new Error("API Key is missing. Please set process.env.API_KEY.");
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const model = "gemini-2.5-flash"; // Using flash for faster document processing
+  const model = "gemini-2.5-flash"; 
   
   const filePart = await fileToGenerativePart(file);
 
+  // Customize prompt based on settings
+  const detailInstruction = settings.detailLevel === 'detailed' 
+    ? "讲解要极其细致，对话回合数至少要25轮以上。不要略过任何技术细节，尤其是方法论和实验部分。" 
+    : (settings.detailLevel === 'academic' 
+        ? "讲解要专业且有深度，使用专业术语但随后进行解释，重点分析论文的创新点和不足，对话长度30轮左右。" 
+        : "讲解要简明扼要，重点突出，适合快速阅读，15轮左右。");
+
+  const personalityInstruction = settings.personality === 'tsundere'
+    ? "语气要非常傲娇。虽然很嫌弃主殿（用户）看不懂，但还是很用心地解释。多用“真拿你没办法”、“笨蛋主殿”等词汇。"
+    : (settings.personality === 'gentle'
+        ? "语气要非常温柔，像大姐姐一样。多鼓励主殿，“没关系，慢慢来”、“主殿真棒”。"
+        : "语气要严厉，像魔鬼教官。要求主殿必须跟上思路，不许偷懒。");
+
   const prompt = `
-    你现在是千恋万花中的角色“丛雨”（Murasame）。
+    你现在是Visual Novel游戏中的角色“丛雨”（Murasame）。
     
     人物设定：
     1. 身份：寄宿在神刀“丛雨丸”中的守护灵，活了五百年的幼女姿态。
     2. 称呼：自称“吾辈”（Wagahai），称呼用户为“主殿”（Aruji-dono）。
-    3. 语气：古风，傲娇，可爱，博学但偶尔会表现出对现代科技的好奇。
+    3. 核心性格：古风，博学，${personalityInstruction}
     4. 口癖：句尾常带“...のじゃ”(noja), “...おる”(oru), “...なのだ”(nanoda), “...である”(dearu)。
-    5. 任务：阅读这篇论文，并用通俗易懂、带有上述口癖的对话形式向“主殿”解释论文的核心内容。
     
-    请按以下步骤讲解：
-    1. 开场白：评价一下这篇论文的标题，或者发发牢骚（比如字太多了）。
-    2. 核心概括：用一句话概括这篇论文解决了什么问题。
-    3. 详细解读：分点讲解方法、实验结果和贡献，中间穿插对“主殿”的鼓励或吐槽。
-    4. 总结：最后的评价。
-
-    Output MUST be valid JSON matching the schema provided.
+    任务：阅读这篇论文，并以Visual Novel对话的形式向“主殿”详细讲解。
+    
+    ${detailInstruction}
+    
+    请严格按以下结构进行讲解（不要在对话中直接说是“第一部分”，要自然地流露）：
+    1. **开场 (Intro)**：评价标题，或者针对论文的长度/难度发发牢骚。
+    2. **背景与痛点 (Background)**：这篇论文究竟是解决什么问题的？为什么以前的方法不行？（此处需要跟主殿互动，确认他听懂了）。
+    3. **核心方法 (Methodology)**：这是最重要的地方。详细拆解它的模型架构、算法公式（用比喻解释）、创新模块。必须分点讲清楚。
+    4. **实验结果 (Experiments)**：在什么数据集上做的？SOTA对比如何？有没有什么消融实验值得注意？
+    5. **总结与八卦 (Conclusion)**：这论文有没有灌水的嫌疑？或者真的很有跨时代意义？
+    
+    Output MUST be valid JSON matching the schema provided. 
+    The 'script' array MUST contain enough items to satisfy the length requirement.
   `;
 
   try {
@@ -73,7 +91,7 @@ export const analyzePaper = async (file: File): Promise<PaperAnalysisResponse> =
                   speaker: { type: Type.STRING, enum: ["丛雨", "Murasame"] },
                   text: { type: Type.STRING, description: "The dialogue content" },
                   emotion: { type: Type.STRING, enum: ["normal", "happy", "angry", "surprised", "shy", "proud"] },
-                  note: { type: Type.STRING, description: "Optional explanation for technical terms", nullable: true }
+                  note: { type: Type.STRING, description: "Optional explanation for technical terms, pop up on screen", nullable: true }
                 },
                 required: ["speaker", "text", "emotion"]
               }
@@ -93,12 +111,17 @@ export const analyzePaper = async (file: File): Promise<PaperAnalysisResponse> =
     console.error("Error analyzing paper:", error);
     // Fallback error script
     return {
-      title: "解析失败",
+      title: "灵力回路遮断",
       script: [
         {
           speaker: "丛雨",
-          text: "呜... 主殿，这篇论文的魔力太强了，吾辈... 吾辈看不懂... (API Error)",
+          text: "呜... 主殿，连结彼岸的通道似乎被干扰了（API Request Failed）。",
           emotion: "shy"
+        },
+        {
+          speaker: "丛雨",
+          text: "是不是你的API Key没放对地方？或者是这篇论文有结界？",
+          emotion: "angry"
         }
       ]
     };

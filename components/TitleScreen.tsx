@@ -2,15 +2,16 @@ import React from 'react';
 
 interface TitleScreenProps {
   onStart: () => void;
+  onSettings: () => void;
 }
 
-export const TitleScreen: React.FC<TitleScreenProps> = ({ onStart }) => {
+export const TitleScreen: React.FC<TitleScreenProps> = ({ onStart, onSettings }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full w-full relative">
       {/* Decorative Character (Static Image) */}
       <div className="absolute right-0 bottom-0 h-[90%] w-auto z-0 opacity-0 animate-fade-in transition-opacity duration-1000 delay-500 hidden md:block">
          <img 
-            src="https://picsum.photos/600/1000" 
+            src="https://placehold.co/600x1000/ff9eb5/white?text=Murasame+Fullbody" 
             alt="Murasame"
             className="h-full w-auto object-contain mask-image-gradient" 
             style={{ maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)' }}
@@ -32,7 +33,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({ onStart }) => {
 
         <div className="flex flex-row space-x-8">
             <MenuButton onClick={onStart} icon="fa-play" label="开始" subLabel="START GAME" primary />
-            <MenuButton onClick={() => alert("Murasame is currently organizing the archives. (Settings not implemented)")} icon="fa-cog" label="设置" subLabel="CONFIG" />
+            <MenuButton onClick={onSettings} icon="fa-cog" label="设置" subLabel="CONFIG" />
         </div>
       </div>
       

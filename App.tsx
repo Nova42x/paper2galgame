@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import { TitleScreen } from './components/TitleScreen';
 import { UploadScreen } from './components/UploadScreen';
 import { GameScreen } from './components/GameScreen';
-import { DialogueLine } from './types';
+import { SettingsScreen } from './components/SettingsScreen';
+import { DialogueLine, GameSettings } from './types';
 
 export enum AppState {
   TITLE,
   UPLOAD,
   GAME,
+  SETTINGS,
 }
 
 const App: React.FC = () => {
   const [currentState, setCurrentState] = useState<AppState>(AppState.TITLE);
   const [script, setScript] = useState<DialogueLine[]>([]);
   const [paperTitle, setPaperTitle] = useState<string>("");
+  const [settings, setSettings] = useState<GameSettings>({
+    detailLevel: 'detailed',
+    personality: 'tsundere'
+  });
 
   const handleStartGame = (generatedScript: DialogueLine[], title: string) => {
     setScript(generatedScript);
@@ -57,13 +63,28 @@ const App: React.FC = () => {
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full">
         {currentState === AppState.TITLE && (
-          <TitleScreen onStart={() => setCurrentState(AppState.UPLOAD)} />
+          <TitleScreen 
+            onStart={() => setCurrentState(AppState.UPLOAD)} 
+            onSettings={() => setCurrentState(AppState.SETTINGS)}
+          />
         )}
         
+        {currentState === AppState.SETTINGS && (
+          <SettingsScreen
+            currentSettings={settings}
+            onSave={(newSettings) => {
+              setSettings(newSettings);
+              setCurrentState(AppState.TITLE);
+            }}
+            onBack={() => setCurrentState(AppState.TITLE)}
+          />
+        )}
+
         {currentState === AppState.UPLOAD && (
           <UploadScreen 
             onScriptGenerated={handleStartGame} 
             onBack={handleBackToTitle}
+            settings={settings}
           />
         )}
         

@@ -7,6 +7,21 @@ interface GameScreenProps {
   onExit: () => void;
 }
 
+// ==========================================
+// CONFIG: CHARACTER IMAGES
+// Modify these URLs to change the character sprites.
+// You can use local paths (e.g. "/assets/murasame_happy.png") or remote URLs.
+// ==========================================
+const CHARACTER_IMAGES: Record<string, string> = {
+  // Using placehold.co for clear demonstration. Replace with real assets!
+  normal: 'https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png',
+  happy: 'https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png',
+  angry: 'https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png',
+  surprised: 'https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png',
+  shy: 'https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png',
+  proud: 'https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png',
+};
+
 export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
@@ -14,6 +29,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
   const [isAuto, setIsAuto] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [hideUI, setHideUI] = useState(false);
+  const [jumpKey, setJumpKey] = useState(0); // Used to trigger jump animation
   
   const currentLine = script[currentIndex];
   const typingSpeed = 30; // ms per char
@@ -22,20 +38,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
   const timerRef = useRef<number | null>(null);
   const autoTimerRef = useRef<number | null>(null);
 
+  // Trigger jump animation on new line
+  useEffect(() => {
+    setJumpKey(prev => prev + 1);
+  }, [currentIndex]);
+
   // Character sprite handling based on emotion
   const getSpriteUrl = (emotion: string) => {
-    // Using Picsum as placeholders but mapping emotion to different IDs to simulate changes
-    // In a real app, these would be local assets or specific URLs
-    const map: Record<string, string> = {
-      normal: '200/600',
-      happy: '201/600',
-      angry: '202/600',
-      surprised: '203/600',
-      shy: '204/600',
-      proud: '205/600'
-    };
-    const id = map[emotion] || '200/600';
-    return `https://picsum.photos/${id}?grayscale`; // Grayscale to make it look a bit more uniform/artistic as placeholder
+    const key = emotion.toLowerCase();
+    return CHARACTER_IMAGES[key] || CHARACTER_IMAGES['normal'];
   };
 
   // Typewriter effect
@@ -99,11 +110,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
       
       {/* Character Layer */}
       {!hideUI && (
-        <div className={`absolute bottom-0 right-0 md:right-32 h-[90%] transition-transform duration-500 ease-out z-10 ${isTyping ? 'scale-100' : 'scale-[1.01]'}`}>
+        <div 
+           key={jumpKey} // Re-trigger animation on key change
+           className={`absolute bottom-0 right-0 md:right-32 h-[90%] z-10 animate-jump-once`}
+        >
           <img 
             src={getSpriteUrl(currentLine.emotion)} 
             alt="Murasame" 
-            className="h-full w-auto object-contain drop-shadow-2xl"
+            className="h-full w-auto object-contain drop-shadow-2xl transition-opacity duration-300"
           />
         </div>
       )}
