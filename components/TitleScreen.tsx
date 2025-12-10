@@ -11,7 +11,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({ onStart, onSettings })
       {/* Decorative Character (Static Image) */}
       <div className="absolute right-0 bottom-0 h-[90%] w-auto z-0 opacity-0 animate-fade-in transition-opacity duration-1000 delay-500 hidden md:block">
          <img 
-            src="https://placehold.co/600x1000/ff9eb5/white?text=Murasame+Fullbody" 
+            src="https://pic1.imgdb.cn/item/6938f3e507135a7c195e123c.png" 
             alt="Murasame"
             className="h-full w-auto object-contain mask-image-gradient" 
             style={{ maskImage: 'linear-gradient(to bottom, black 80%, transparent 100%)' }}
