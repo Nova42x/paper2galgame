@@ -133,18 +133,12 @@ const fileToBase64DataUrl = async (file: File): Promise<string> => {
 export const analyzePaper = async (file: File, settings: GameSettings): Promise<PaperAnalysisResponse> => {
   
   try {
-    // Method 1: Upload file using Files API (recommended for files up to 512MB)
-    let fileId: string;
-    
-    if (file.size <= 50 * 1024 * 1024) { // 50MB
-      // For smaller files, upload via Files API
-      fileId = await uploadPDFFile(file);
-    } else if (file.size <= 512 * 1024 * 1024) { // 512MB
-      // For larger files (50-512MB), must use Files API
-      fileId = await uploadPDFFile(file);
-    } else {
+    // Upload file using Files API (supports files up to 512MB)
+    if (file.size > 512 * 1024 * 1024) {
       throw new Error('File size exceeds 512MB limit');
     }
+    
+    const fileId = await uploadPDFFile(file);
 
     // Customize prompt based on settings
     const detailInstruction = settings.detailLevel === 'detailed' 
