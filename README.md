@@ -14,7 +14,7 @@
 *   **构建/模块**: ES Modules (通过 `importmap` 和 `esm.sh` 引入)，无需复杂的 Webpack/Vite 本地配置即可运行，适合快速原型开发。
 *   **样式库**: [Tailwind CSS](https://tailwindcss.com/) (CDN 引入) - 原子化 CSS，实现快速 UI 开发与响应式布局。
 *   **图标库**: [FontAwesome](https://fontawesome.com/) - 提供 UI 图标支持。
-*   **AI SDK**: [`@google/genai`](https://www.npmjs.com/package/@google/genai) - Google 官方 SDK，用于与 Gemini 模型交互。
+*   **AI API**: [Volcengine ARK (Doubao/豆包)](https://www.volcengine.com/docs/82379/1302007) - 火山引擎方舟大模型服务，使用原生 Fetch API 调用。
 *   **字体**: Noto Serif SC (中文衬线) & Nunito (英文字体)，营造视觉小说的阅读质感。
 
 ---
@@ -28,7 +28,8 @@
 ├── App.tsx                     # 顶层组件，管理路由状态 (Title -> Upload -> Game)
 ├── types.ts                    # TypeScript 类型定义 (DialogueLine, GameSettings 等)
 ├── services/
-│   └── geminiService.ts        # 核心业务逻辑：文件处理、Prompt 构造、API 调用
+│   ├── doubaoService.ts        # 核心业务逻辑：文件处理、Prompt 构造、Doubao API 调用
+│   └── geminiService.ts        # (已弃用) 原 Gemini API 实现
 └── components/
     ├── TitleScreen.tsx         # 标题/主菜单界面
     ├── UploadScreen.tsx        # 文件上传与加载状态界面
@@ -41,16 +42,21 @@
 ## 4. 关键维护与修改点 (Key Maintenance Points)
 
 ### 4.1. API Key 配置
-*   **位置**: `services/geminiService.ts`
+*   **位置**: `services/doubaoService.ts`
 *   **变量**: `API_KEY`
-*   **注意**: 目前 Key 为前端硬编码。在生产环境中，建议通过环境变量或后端代理请求以防泄露。
+*   **环境变量**: 创建 `.env` 文件并添加 `ARK_API_KEY=your_key_here`
+*   **获取方式**: 
+    1. 访问 [火山引擎控制台](https://console.volcengine.com/ark)
+    2. 在模型推理页面获取 API Key
+    3. 选择支持 PDF 文档理解的模型 (如 `doubao-seed-1-6-251015`)
+*   **注意**: 目前 Key 可能为前端硬编码（仅供开发）。在生产环境中，务必通过环境变量或后端代理请求以防泄露。
 
 ### 4.2. 角色设定与 Prompt (Prompt Engineering)
-*   **位置**: `services/geminiService.ts` 中的 `prompt` 变量。
+*   **位置**: `services/doubaoService.ts` 中的 `prompt` 变量。
 *   **修改**: 若要更改角色设定（例如从“丛雨”改为“猫娘”），需修改：
     1.  `personalityInstruction` 逻辑。
     2.  `prompt` 模板字符串中的“人物设定”和“口癖”部分。
-    3.  `responseSchema` 中的 `speaker` 枚举值。
+    3.  响应 JSON schema 中的 `speaker` 枚举值。
 
 ### 4.3. 角色立绘 (Character Sprites)
 *   **位置**: `components/GameScreen.tsx`
@@ -63,70 +69,53 @@
 
 ---
 
-## 5. 如何替换为 OpenAI / DeepSeek API (API Migration Guide)
+## 5. Doubao API 使用说明 (Doubao API Usage Guide)
 
-目前的实现深度依赖 Google Gemini 的 **原生多模态 (Native Multimodal)** 能力（直接上传 PDF 文件）。OpenAI (GPT-4) 和 DeepSeek 的标准 Chat API **不直接支持 PDF 文件上传**（通常只支持文本或图片）。
+### 5.1. API 架构
+本项目现已迁移至 **Volcengine ARK (豆包/Doubao)** API，利用其 **原生 PDF 文档理解能力**。Doubao 支持直接上传 PDF 文件并通过视觉功能理解文档内容。
 
-若要迁移到 DeepSeek 或 OpenAI，需要进行架构调整：
+### 5.2. 支持的 PDF 输入方式
+根据 Doubao 官方文档，支持三种方式：
 
-### 步骤 1: 引入 PDF 解析库
-由于 DeepSeek 无法直接“看”PDF，你需要在前端先将 PDF 转换为文本。
-推荐使用 `pdf.js`。
+1. **Files API 上传（推荐）**：
+   - 最大支持 512MB 文件
+   - 文件预处理后可复用，减少延迟
+   - 默认存储 7 天
+   
+2. **Base64 编码传入**：
+   - 适用于小文件（<50MB）
+   - 请求体不超过 64MB
+   
+3. **文件 URL 传入**：
+   - 文件需要公网可访问
+   - 文件大小不超过 50MB
 
-### 步骤 2: 重写 `services/geminiService.ts`
+当前实现使用 **Files API 上传** 方式，代码位于 `services/doubaoService.ts`。
 
-删除 `@google/genai` 引用，改用原生 `fetch`。
-
-**代码示例 (伪代码):**
-
-```typescript
-// 1. 删除 Google SDK 引用
-// import { GoogleGenAI } from "@google/genai"; 
-
-// 2. 定义 DeepSeek/OpenAI 的请求函数
-export const analyzePaper = async (file: File, settings: GameSettings) => {
-  
-  // A. 前端解析 PDF 转文本 (需要额外实现 extractTextFromPDF 函数)
-  // const pdfText = await extractTextFromPDF(file); 
-  
-  // B. 构造消息
-  const messages = [
-    {
-      role: "system",
-      content: "你是一个Galgame角色..." // 这里放入原有的 Prompt 系统指令
-    },
-    {
-      role: "user",
-      content: `请根据以下论文内容进行讲解:\n\n${pdfText}` // 注意：DeepSeek上下文窗口可能有限制
-    }
-  ];
-
-  // C. 发送请求
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer YOUR_DEEPSEEK_API_KEY"
-    },
-    body: JSON.stringify({
-      model: "deepseek-chat", // 或 gpt-4o
-      messages: messages,
-      response_format: { type: "json_object" } // 确保模型支持 JSON 模式
-    })
-  });
-
-  const data = await response.json();
-  // D. 解析返回的 JSON 字符串并适配 DialogueLine 格式
-  return JSON.parse(data.choices[0].message.content);
-};
+### 5.3. API 调用流程
+```
+1. 上传 PDF → /api/v3/files (获取 file_id)
+2. 等待文件处理完成 (轮询状态)
+3. 调用 Responses API → /api/v3/responses (传入 file_id 和 prompt)
+4. 解析返回的 JSON 对话脚本
 ```
 
-**核心差异总结**:
-*   **Gemini**: 直接传 Base64 PDF -> 模型内部解析 -> 输出 JSON。
-*   **DeepSeek/OpenAI**: 前端解析 PDF 为纯文本 -> 传文本给模型 -> 输出 JSON。
+### 5.4. 如何切换回 Gemini 或其他 API
+
+如果需要切换回 Gemini 或迁移到其他 API（OpenAI、DeepSeek 等）：
+
+**切换回 Gemini**:
+1. 修改 `UploadScreen.tsx` 的 import: `import { analyzePaper } from '../services/geminiService'`
+2. 还原 `package.json` 中的 `@google/genai` 依赖
+3. 更新 `vite.config.ts` 使用 `GEMINI_API_KEY`
+
+**迁移到 OpenAI/DeepSeek**:
+注意：OpenAI 和 DeepSeek 的标准 Chat API **不直接支持 PDF 上传**，需要：
+1. 引入 PDF 解析库（如 `pdf.js`）将 PDF 转为文本
+2. 创建新的 service 文件，使用 Chat Completions API
+3. 将提取的文本作为 user message 发送
 
 ---
-
 ## 6. 后续功能增强建议 (Future Improvements)
 
 ### 6.1. 安全性 (Security)
@@ -139,7 +128,7 @@ export const analyzePaper = async (file: File, settings: GameSettings) => {
 *   **存档系统**: 使用 `localStorage` 保存当前的阅读进度。
 
 ### 6.3. 性能 (Performance)
-*   **PDF 解析优化**: 对于超长论文，Gemini 可能会遇到 Token 限制或处理缓慢。可以考虑先提取摘要，或分章节进行讲解。
+*   **PDF 解析优化**: 对于超长论文，Doubao 可能会遇到 Token 限制或处理缓慢。可以考虑先提取摘要，或分章节进行讲解。
 
 ### 6.4. 自定义 (Customization)
 *   **自定义角色**: 允许用户上传自己的立绘包和设定 Prompt，创建属于自己的论文导读员。
@@ -149,8 +138,8 @@ export const analyzePaper = async (file: File, settings: GameSettings) => {
 ## 7. 常见报错排查 (Troubleshooting)
 
 *   **"Failed to summon the explanation"**: 
-    *   检查 `services/geminiService.ts` 中的 API Key 是否有效。
-    *   检查网络是否能连接到 Google API (需科学上网)。
+    *   检查 `services/doubaoService.ts` 中的 API Key 是否有效。
+    *   检查网络是否能连接到 Volcengine ARK API (火山引擎)。
     *   检查上传的文件是否为标准 PDF。
 *   **黑屏/白屏**: 
     *   检查浏览器控制台 (F12) 是否有 JS 报错。

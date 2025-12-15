@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { analyzePaper } from '../services/geminiService';
+import { analyzePaper } from '../services/doubaoService';
 import { DialogueLine, GameSettings } from '../types';
 
 interface UploadScreenProps {
@@ -26,7 +26,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onScriptGenerated, o
 
     try {
       // Simulate phases of "thinking" for better UX
-      const thinkingTimer = setTimeout(() => setLoadingText("Consulting the spirits (Gemini Thinking)..."), 2000);
+      const thinkingTimer = setTimeout(() => setLoadingText("Consulting the spirits (Doubao Thinking)..."), 2000);
       
       const result = await analyzePaper(file, settings);
       
@@ -115,7 +115,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onScriptGenerated, o
               Click or Drag PDF Here
             </p>
             <p className="text-sm text-gray-400">
-              Maximum file size: 10MB
+              Maximum file size: 512MB
             </p>
             
             {error && (
