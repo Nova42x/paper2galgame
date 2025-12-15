@@ -154,10 +154,10 @@ export const analyzePaper = async (file: File, settings: GameSettings): Promise<
           : "讲解要简明扼要，重点突出，适合快速阅读，15轮左右。");
 
     const personalityInstruction = settings.personality === 'tsundere'
-      ? "语气要非常傲娇。虽然很嫌弃主殿（用户）看不懂，但还是很用心地解释。多用"真拿你没办法"、"笨蛋主殿"等词汇。"
+      ? '语气要非常傲娇。虽然很嫌弃主殿（用户）看不懂，但还是很用心地解释。多用"真拿你没办法"、"笨蛋主殿"等词汇。'
       : (settings.personality === 'gentle'
-          ? "语气要非常温柔，像大姐姐一样。多鼓励主殿，"没关系，慢慢来"、"主殿真棒"。"
-          : "语气要严厉，像魔鬼教官。要求主殿必须跟上思路，不许偷懒。");
+          ? '语气要非常温柔，像大姐姐一样。多鼓励主殿，"没关系，慢慢来"、"主殿真棒"。'
+          : '语气要严厉，像魔鬼教官。要求主殿必须跟上思路，不许偷懒。');
 
     const prompt = `
 你现在是Visual Novel游戏中的角色"丛雨"（Murasame）。

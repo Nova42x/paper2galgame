@@ -29,7 +29,7 @@
 ├── types.ts                    # TypeScript 类型定义 (DialogueLine, GameSettings 等)
 ├── services/
 │   ├── doubaoService.ts        # 核心业务逻辑：文件处理、Prompt 构造、Doubao API 调用
-│   └── geminiService.ts        # (已弃用) 原 Gemini API 实现
+│   └── geminiService.ts.deprecated        # (已弃用) 原 Gemini API 实现
 └── components/
     ├── TitleScreen.tsx         # 标题/主菜单界面
     ├── UploadScreen.tsx        # 文件上传与加载状态界面
