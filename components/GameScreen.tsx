@@ -45,6 +45,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
 
   // Character sprite handling based on emotion
   const getSpriteUrl = (emotion: string) => {
+    if (!emotion) return CHARACTER_IMAGES['normal'];
     const key = emotion.toLowerCase();
     return CHARACTER_IMAGES[key] || CHARACTER_IMAGES['normal'];
   };

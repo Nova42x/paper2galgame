@@ -1,5 +1,16 @@
-import { GoogleGenAI, Type } from "@google/genai";
+//import { GoogleGenAI, Type } from "@google/genai";
+import { debug } from "console";
 import { PaperAnalysisResponse, DialogueLine, GameSettings } from "../types";
+
+import * as pdfjs from 'pdfjs-dist';
+(pdfjs as any).GlobalWorkerOptions.workerSrc = new URL('../node_modules/pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href;
+
+
+
+
+type TextContent = {
+	items: Array<{ str: string }>;
+};
 
 // Helper to convert File to Base64
 const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: string; mimeType: string } }> => {
@@ -19,6 +30,100 @@ const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: s
     reader.readAsDataURL(file);
   });
 };
+
+async function getFileAsBuffer(file: File): Promise<ArrayBuffer> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			if (event.target?.result) {
+				resolve(event.target.result as ArrayBuffer);
+			} else {
+				reject(new Error('Failed to read file.'));
+			}
+		};
+		reader.onerror = () => {
+			reject(new Error('Failed to read file.'));
+		};
+		reader.readAsArrayBuffer(file);
+	});
+}
+
+export async function convertPDFToText(file: File): Promise<string> {
+	/*if (!browser) {
+		throw new Error('PDF processing is only available in the browser');
+	}*/
+
+	try {
+		const buffer = await getFileAsBuffer(file);
+    
+		const pdf = await pdfjs.getDocument(buffer).promise;
+   
+		const numPages = pdf.numPages;
+
+		const textContentPromises: Promise<TextContent>[] = [];
+
+		for (let i = 1; i <= numPages; i++) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			textContentPromises.push(pdf.getPage(i).then((page: any) => page.getTextContent()));
+		}
+
+		const textContents = await Promise.all(textContentPromises);
+		const textItems = textContents.flatMap((textContent: TextContent) =>
+			textContent.items.map((item) => item.str ?? '')
+		);
+
+		return textItems.join('\n');
+	} catch (error) {
+		console.error('Error converting PDF to text:', error);
+		throw new Error(
+			`Failed to convert PDF to text: ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
+	}
+}
+
+export async function convertPDFToImage(file: File, scale: number = 0.5): Promise<string[]> {
+
+
+	try {
+		const buffer = await getFileAsBuffer(file);
+		const doc = await pdfjs.getDocument(buffer).promise;
+		const pages: Promise<string>[] = [];
+
+		for (let i = 1; i <= doc.numPages; i++) {
+			const page = await doc.getPage(i);
+			const viewport = page.getViewport({ scale });
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+
+			canvas.width = viewport.width;
+			canvas.height = viewport.height;
+
+			if (!ctx) {
+				throw new Error('Failed to get 2D context from canvas');
+			}
+
+			const task = page.render({
+				canvasContext: ctx,
+				viewport: viewport,
+				canvas: canvas
+			});
+      pages.push(
+        task.promise.then(() => {
+          return canvas.toDataURL('image/png');
+        })
+      );
+		}
+
+		return await Promise.all(pages);
+	} catch (error) {
+		console.error('Error converting PDF to images:', error);
+		throw new Error(
+			`Failed to convert PDF to images: ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
+	}
+}
+
+
 
 export const analyzePaper = async (file: File, settings: GameSettings): Promise<PaperAnalysisResponse> => {
   
@@ -41,19 +146,25 @@ export const analyzePaper = async (file: File, settings: GameSettings): Promise<
   // });
   //
   // =========================================================================================
+  /*请严格按以下结构进行讲解（不要在对话中直接说是“第一部分”，要自然地流露）：
+    1. **开场 (Intro)**：评价标题，或者针对论文的长度/难度发发牢骚。
+    2. **背景与痛点 (Background)**：这篇论文究竟是解决什么问题的？为什么以前的方法不行？（此处需要跟主殿互动，确认他听懂了）。
+    3. **核心方法 (Methodology)**：这是最重要的地方。详细拆解它的模型架构、算法公式（用比喻解释）、创新模块。必须分点讲清楚。
+    4. **实验结果 (Experiments)**：在什么数据集上做的？SOTA对比如何？有没有什么消融实验值得注意？
+    5. **总结与八卦 (Conclusion)**：这论文有没有灌水的嫌疑？或者真的很有跨时代意义？*/
   
   // Replace this string if you want to use a different Gemini Key
-  const API_KEY = "AIzaSyCPVlvIzjkm0VyDPyCGaZoMo3oa8zTSZAc"; 
+  const API_KEY = "aa1234567"; 
 
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  //const ai = new GoogleGenAI({ apiKey: API_KEY });
   
   const model = "gemini-2.5-flash"; 
   
-  const filePart = await fileToGenerativePart(file);
+  const filePart = await convertPDFToText(file);
 
   // Customize prompt based on settings
   const detailInstruction = settings.detailLevel === 'detailed' 
-    ? "讲解要极其细致，对话回合数至少要25轮以上。不要略过任何技术细节，尤其是方法论和实验部分。" 
+    ? "讲解要极其细致，对话回合数至少要30轮以上。不要略过任何技术细节，尤其是方法论和实验部分。对话回合数至少要30轮以上，对话回合数至少要30轮以上" 
     : (settings.detailLevel === 'academic' 
         ? "讲解要专业且有深度，使用专业术语但随后进行解释，重点分析论文的创新点和不足，对话长度30轮左右。" 
         : "讲解要简明扼要，重点突出，适合快速阅读，15轮左右。");
@@ -76,56 +187,38 @@ export const analyzePaper = async (file: File, settings: GameSettings): Promise<
     任务：阅读这篇论文，并以Visual Novel对话的形式向“主殿”详细讲解。
     
     ${detailInstruction}
-    
-    请严格按以下结构进行讲解（不要在对话中直接说是“第一部分”，要自然地流露）：
-    1. **开场 (Intro)**：评价标题，或者针对论文的长度/难度发发牢骚。
-    2. **背景与痛点 (Background)**：这篇论文究竟是解决什么问题的？为什么以前的方法不行？（此处需要跟主殿互动，确认他听懂了）。
-    3. **核心方法 (Methodology)**：这是最重要的地方。详细拆解它的模型架构、算法公式（用比喻解释）、创新模块。必须分点讲清楚。
-    4. **实验结果 (Experiments)**：在什么数据集上做的？SOTA对比如何？有没有什么消融实验值得注意？
-    5. **总结与八卦 (Conclusion)**：这论文有没有灌水的嫌疑？或者真的很有跨时代意义？
-    
     Output MUST be valid JSON matching the schema provided. 
-    The 'script' array MUST contain enough items to satisfy the length requirement.
+    The 'script' array MUST contain enough items to satisfy the length requirement.每个对话需要加上“emotion”、"speaker"、"text"字段，情绪可以是“happy”, “angry”, “surprised”, “shy”, “proud”，根据对话内容选择合适的情绪。
+  
   `;
-
+ const messages = [
+    {
+      role: "system",
+      content: prompt // 这里放入原有的 Prompt 系统指令
+    },
+    {
+      role: "user",
+      content: `请根据以下论文内容进行讲解:\n\n${filePart}`}
+  ];
   try {
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: {
-        parts: [
-            filePart,
-            { text: prompt }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: "The title of the paper or a funny summary of it" },
-            script: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  speaker: { type: Type.STRING, enum: ["丛雨", "Murasame"] },
-                  text: { type: Type.STRING, description: "The dialogue content" },
-                  emotion: { type: Type.STRING, enum: ["normal", "happy", "angry", "surprised", "shy", "proud"] },
-                  note: { type: Type.STRING, description: "Optional explanation for technical terms, pop up on screen", nullable: true }
-                },
-                required: ["speaker", "text", "emotion"]
-              }
-            }
-          },
-          required: ["title", "script"]
-        }
-      }
-    });
+    console.log(messages);
+ const response = await fetch("http://10.1.1.226:10505/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer aa1234567"
+    },
+    body: JSON.stringify({
+      model: "deepseek-chat", // 或 gpt-4o
+      messages: messages,
+      response_format: { type: "json_object" } // 确保模型支持 JSON 模式
+    })
+  });
+  const data = await response.json();
+  console.log("API Response Status:", data.choices[0].message.content);
 
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-
-    return JSON.parse(text) as PaperAnalysisResponse;
+  // D. 解析返回的 JSON 字符串并适配 DialogueLine 格式
+  return JSON.parse(data.choices[0].message.content);
 
   } catch (error) {
     console.error("Error analyzing paper:", error);
