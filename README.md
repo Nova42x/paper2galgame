@@ -1,157 +1,134 @@
-# Paper2Galgame - 技术架构与维护文档
+﻿# Paper2Galgame 📚✨
 
-## 1. 项目概述 (Project Overview)
+> 将学术论文转化为沉浸式 Galgame 体验，由守护灵"丛雨"（Murasame）为你讲解！
 
-**Paper2Galgame** 是一个基于 Web 的创新应用，旨在将枯燥的学术论文（PDF）转化为沉浸式的 Galgame（视觉小说）对话体验。项目通过集成生成式 AI，模拟二次元角色“丛雨”（Murasame）的口吻，对论文内容进行深度解析、吐槽和教学。
+![Powered by Gemini](https://img.shields.io/badge/Powered%20by-Gemini%202.5-blue)
+![React](https://img.shields.io/badge/React-19.2-61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6)
+![Vite](https://img.shields.io/badge/Vite-6.2-646CFF)
 
----
+## �� 项目简介
 
-## 2. 技术栈 (Tech Stack)
+Paper2Galgame 是一个创新的 Web 应用，利用 AI 将枯燥的学术论文转化为视觉小说风格的对话体验。由五百年守护灵"丛雨"以傲娇（或温柔/严厉）的方式，为你逐步讲解论文内容。
 
-本项目采用现代前端轻量化架构，主要技术选型如下：
+### ✨ 特性
 
-*   **核心框架**: [React 19](https://react.dev/) - 使用函数式组件与 Hooks (`useState`, `useEffect`, `useRef`) 管理状态与生命周期。
-*   **构建/模块**: ES Modules (通过 `importmap` 和 `esm.sh` 引入)，无需复杂的 Webpack/Vite 本地配置即可运行，适合快速原型开发。
-*   **样式库**: [Tailwind CSS](https://tailwindcss.com/) (CDN 引入) - 原子化 CSS，实现快速 UI 开发与响应式布局。
-*   **图标库**: [FontAwesome](https://fontawesome.com/) - 提供 UI 图标支持。
-*   **AI SDK**: [`@google/genai`](https://www.npmjs.com/package/@google/genai) - Google 官方 SDK，用于与 Gemini 模型交互。
-*   **字体**: Noto Serif SC (中文衬线) & Nunito (英文字体)，营造视觉小说的阅读质感。
+- 📄 **PDF 解析**：自动提取论文文本内容
+- 🤖 **AI 驱动**：支持 DeepSeek / OpenAI 兼容 API
+- 🎭 **多种性格**：傲娇、温柔、严厉三种讲解风格
+- 📊 **可调深度**：简略/详细/学术三档讲解深度
+- 💬 **完整 VN 体验**：打字机效果、自动播放、对话历史
+- 🎨 **精美 UI**：动态立绘、情绪表情切换
 
----
+## 🚀 快速开始
 
-## 3. 项目结构说明 (Project Structure)
+### 环境要求
 
-```text
-/
-├── index.html                  # 入口文件，包含 Tailwind 配置、ImportMap 和全局样式
-├── index.tsx                   # React 根节点挂载
-├── App.tsx                     # 顶层组件，管理路由状态 (Title -> Upload -> Game)
-├── types.ts                    # TypeScript 类型定义 (DialogueLine, GameSettings 等)
-├── services/
-│   └── geminiService.ts        # 核心业务逻辑：文件处理、Prompt 构造、API 调用
-└── components/
-    ├── TitleScreen.tsx         # 标题/主菜单界面
-    ├── UploadScreen.tsx        # 文件上传与加载状态界面
-    ├── SettingsScreen.tsx      # 设置界面 (性格、解析深度)
-    └── GameScreen.tsx          # 游戏主界面 (立绘、对话框、打字机效果)
+- Node.js >= 18
+- npm 或 pnpm
+
+### 安装
+
+```bash
+# 克隆项目
+git clone <repository-url>
+cd paper2galgame
+
+# 安装依赖
+npm install
 ```
 
----
+### 配置 API
 
-## 4. 关键维护与修改点 (Key Maintenance Points)
-
-### 4.1. API Key 配置
-*   **位置**: `services/geminiService.ts`
-*   **变量**: `API_KEY`
-*   **注意**: 目前 Key 为前端硬编码。在生产环境中，建议通过环境变量或后端代理请求以防泄露。
-
-### 4.2. 角色设定与 Prompt (Prompt Engineering)
-*   **位置**: `services/geminiService.ts` 中的 `prompt` 变量。
-*   **修改**: 若要更改角色设定（例如从“丛雨”改为“猫娘”），需修改：
-    1.  `personalityInstruction` 逻辑。
-    2.  `prompt` 模板字符串中的“人物设定”和“口癖”部分。
-    3.  `responseSchema` 中的 `speaker` 枚举值。
-
-### 4.3. 角色立绘 (Character Sprites)
-*   **位置**: `components/GameScreen.tsx`
-*   **变量**: `CHARACTER_IMAGES` 对象。
-*   **修改**: 替换对象中的 URL 即可更改不同情绪下的角色图片。
-
-### 4.4. 样式主题
-*   **位置**: `index.html` 中的 `tailwind.config` script 标签。
-*   **修改**: 修改 `colors` 对象中的 `gal-pink`, `gal-blue` 等自定义颜色变量，可实现全局换肤。
-
----
-
-## 5. 如何替换为 OpenAI / DeepSeek API (API Migration Guide)
-
-目前的实现深度依赖 Google Gemini 的 **原生多模态 (Native Multimodal)** 能力（直接上传 PDF 文件）。OpenAI (GPT-4) 和 DeepSeek 的标准 Chat API **不直接支持 PDF 文件上传**（通常只支持文本或图片）。
-
-若要迁移到 DeepSeek 或 OpenAI，需要进行架构调整：
-
-### 步骤 1: 引入 PDF 解析库
-由于 DeepSeek 无法直接“看”PDF，你需要在前端先将 PDF 转换为文本。
-推荐使用 `pdf.js`。
-
-### 步骤 2: 重写 `services/geminiService.ts`
-
-删除 `@google/genai` 引用，改用原生 `fetch`。
-
-**代码示例 (伪代码):**
+编辑 [`services/geminiService.ts`](services/geminiService.ts )，修改 API 端点和密钥：
 
 ```typescript
-// 1. 删除 Google SDK 引用
-// import { GoogleGenAI } from "@google/genai"; 
+// 第 205 行附近
+const response = await fetch("YOUR_API_ENDPOINT", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_API_KEY"
+  },
+  // ...
+});
+```
 
-// 2. 定义 DeepSeek/OpenAI 的请求函数
-export const analyzePaper = async (file: File, settings: GameSettings) => {
-  
-  // A. 前端解析 PDF 转文本 (需要额外实现 extractTextFromPDF 函数)
-  // const pdfText = await extractTextFromPDF(file); 
-  
-  // B. 构造消息
-  const messages = [
-    {
-      role: "system",
-      content: "你是一个Galgame角色..." // 这里放入原有的 Prompt 系统指令
-    },
-    {
-      role: "user",
-      content: `请根据以下论文内容进行讲解:\n\n${pdfText}` // 注意：DeepSeek上下文窗口可能有限制
-    }
-  ];
+### 运行
 
-  // C. 发送请求
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer YOUR_DEEPSEEK_API_KEY"
-    },
-    body: JSON.stringify({
-      model: "deepseek-chat", // 或 gpt-4o
-      messages: messages,
-      response_format: { type: "json_object" } // 确保模型支持 JSON 模式
-    })
-  });
+```bash
+# 开发模式
+npm run dev
 
-  const data = await response.json();
-  // D. 解析返回的 JSON 字符串并适配 DialogueLine 格式
-  return JSON.parse(data.choices[0].message.content);
+# 构建生产版本
+npm run build
+
+# 预览生产版本
+npm run preview
+```
+
+访问 `http://localhost:3000` 开始使用。
+
+## 📁 项目结构
+
+```
+paper2galgame/
+ index.html          # 入口 HTML
+ index.tsx           # React 入口
+ App.tsx             # 主应用组件
+ types.ts            # TypeScript 类型定义
+ components/
+    TitleScreen.tsx     # 标题界面
+    UploadScreen.tsx    # 上传界面
+    GameScreen.tsx      # 游戏主界面
+    SettingsScreen.tsx  # 设置界面
+ services/
+     geminiService.ts    # API 服务层
+```
+
+## ⚙️ 配置选项
+
+### 讲解深度 ([`GameSettings.detailLevel`](types.ts ))
+
+| 选项 | 描述 | 对话轮数 |
+|------|------|----------|
+| `brief` | 简略模式，快速总结 | ~15 轮 |
+| `detailed` | 详细模式，深入讲解 | ~30 轮 |
+| `academic` | 学术模式，专业分析 | ~30 轮 |
+
+### 性格模式 ([`GameSettings.personality`](types.ts ))
+
+| 选项 | 描述 |
+|------|------|
+| `tsundere` | 傲娇模式：「真拿你没办法，笨蛋主殿！」 |
+| `gentle` | 温柔模式：「没关系，慢慢来～」 |
+| `strict` | 严厉模式：「不许偷懒！」 |
+
+## 🎨 自定义立绘
+
+编辑 [`components/GameScreen.tsx`](components/GameScreen.tsx ) 中的 [`CHARACTER_IMAGES`](components/GameScreen.tsx ) 对象：
+
+```typescript
+const CHARACTER_IMAGES: Record<string, string> = {
+  normal: 'your-image-url',
+  happy: 'your-image-url',
+  angry: 'your-image-url',
+  // ...
 };
 ```
 
-**核心差异总结**:
-*   **Gemini**: 直接传 Base64 PDF -> 模型内部解析 -> 输出 JSON。
-*   **DeepSeek/OpenAI**: 前端解析 PDF 为纯文本 -> 传文本给模型 -> 输出 JSON。
+## 🔧 技术栈
+
+- **前端框架**: React 19 + TypeScript
+- **构建工具**: Vite 6
+- **样式**: Tailwind CSS
+- **PDF 解析**: pdfjs-dist
+- **AI API**: OpenAI 兼容接口
+
+## 📝 License
+
+MIT License
 
 ---
 
-## 6. 后续功能增强建议 (Future Improvements)
-
-### 6.1. 安全性 (Security)
-*   **后端代理**: 创建一个轻量级后端 (Node.js/Next.js API Routes)，将 API Key 存储在服务器端，前端仅向后端发送文件，避免 Key 泄露。
-
-### 6.2. 功能 (Features)
-*   **流式输出 (Streaming)**: 目前是等待完全生成后才开始播放。可以改为流式接收 JSON 片段，实现“边想边说”的效果，减少首屏等待时间。
-*   **语音合成 (TTS)**: 集成 ElevenLabs 或 Edge TTS，根据 `emotion` 字段为角色配音。
-*   **历史记录回溯 (Log)**: 增强 Log 功能，允许点击历史对话跳转。
-*   **存档系统**: 使用 `localStorage` 保存当前的阅读进度。
-
-### 6.3. 性能 (Performance)
-*   **PDF 解析优化**: 对于超长论文，Gemini 可能会遇到 Token 限制或处理缓慢。可以考虑先提取摘要，或分章节进行讲解。
-
-### 6.4. 自定义 (Customization)
-*   **自定义角色**: 允许用户上传自己的立绘包和设定 Prompt，创建属于自己的论文导读员。
-
----
-
-## 7. 常见报错排查 (Troubleshooting)
-
-*   **"Failed to summon the explanation"**: 
-    *   检查 `services/geminiService.ts` 中的 API Key 是否有效。
-    *   检查网络是否能连接到 Google API (需科学上网)。
-    *   检查上传的文件是否为标准 PDF。
-*   **黑屏/白屏**: 
-    *   检查浏览器控制台 (F12) 是否有 JS 报错。
-    *   确保 `index.html` 中的 `type="module"` 脚本引用正确。
+*Designed for Research & Fun* 🌸
