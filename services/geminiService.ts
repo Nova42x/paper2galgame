@@ -12,6 +12,31 @@ type TextContent = {
 	items: Array<{ str: string }>;
 };
 
+function parseModelJson(content: string) {
+  const trimmed = content.trim();
+
+  // Remove common Markdown fences such as ```json ... ```
+  const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedMatch?.[1]) {
+    return JSON.parse(fencedMatch[1].trim());
+  }
+
+  // If the model prefixed/suffixed extra text, extract the first JSON object/array.
+  const firstObjectIndex = trimmed.indexOf('{');
+  const lastObjectIndex = trimmed.lastIndexOf('}');
+  if (firstObjectIndex !== -1 && lastObjectIndex !== -1 && lastObjectIndex > firstObjectIndex) {
+    return JSON.parse(trimmed.slice(firstObjectIndex, lastObjectIndex + 1));
+  }
+
+  const firstArrayIndex = trimmed.indexOf('[');
+  const lastArrayIndex = trimmed.lastIndexOf(']');
+  if (firstArrayIndex !== -1 && lastArrayIndex !== -1 && lastArrayIndex > firstArrayIndex) {
+    return JSON.parse(trimmed.slice(firstArrayIndex, lastArrayIndex + 1));
+  }
+
+  return JSON.parse(trimmed);
+}
+
 // Helper to convert File to Base64
 const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: string; mimeType: string } }> => {
   return new Promise((resolve, reject) => {
@@ -123,6 +148,34 @@ export async function convertPDFToImage(file: File, scale: number = 0.5): Promis
 	}
 }
 
+// Convert PDF into image assets suitable for OpenAI-style file attachments
+export async function convertPDFToImageAssets(file: File, scale: number = 1): Promise<Array<{ name: string; mimeType: string; base64: string }>> {
+  try {
+    const buffer = await getFileAsBuffer(file);
+    const doc = await pdfjs.getDocument(buffer).promise;
+    const assets: Array<{ name: string; mimeType: string; base64: string }> = [];
+
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      if (!ctx) throw new Error('Failed to get canvas context');
+        await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64 = dataUrl.split(',')[1];
+      assets.push({ name: `page-${i}.png`, mimeType: 'image/png', base64 });
+    }
+
+    return assets;
+  } catch (error) {
+    console.error('Error converting PDF to image assets:', error);
+    throw error;
+  }
+}
+
 
 
 export const analyzePaper = async (file: File, settings: GameSettings): Promise<PaperAnalysisResponse> => {
@@ -160,7 +213,16 @@ export const analyzePaper = async (file: File, settings: GameSettings): Promise<
   
   const model = "gemini-2.5-flash"; 
   
-  const filePart = await convertPDFToText(file);
+  // If requested, convert PDF to image attachments suitable for OpenAI-style APIs
+  let filePart = '';
+  let attachments: Array<{ name: string; mimeType: string; data: string }> | undefined = undefined;
+  if (settings.sendAsImages) {
+    const assets = await convertPDFToImageAssets(file, 1);
+    attachments = assets.map(a => ({ name: a.name, mimeType: a.mimeType, data: a.base64 }));
+    filePart = `论文已作为图片附件上传，共 ${assets.length} 页（附件名：${assets.map(a=>a.name).join(', ')}）。请基于附件内容进行讲解。`;
+  } else {
+    filePart = await convertPDFToText(file);
+  }
 
   // Customize prompt based on settings
   const detailInstruction = settings.detailLevel === 'detailed' 
@@ -202,23 +264,27 @@ export const analyzePaper = async (file: File, settings: GameSettings): Promise<
   ];
   try {
     console.log(messages);
+ const payload: any = {
+    model: "deepseek-chat",
+    messages: messages,
+    response_format: { type: "json_object" }
+  };
+  if (attachments) payload.files = attachments; // OpenAI-style file attachments (base64)
+
  const response = await fetch("http://10.1.1.226:10505/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "Bearer aa1234567"
+      "Authorization": "Bearer aa123321"
     },
-    body: JSON.stringify({
-      model: "deepseek-chat", // 或 gpt-4o
-      messages: messages,
-      response_format: { type: "json_object" } // 确保模型支持 JSON 模式
-    })
+    body: JSON.stringify(payload)
   });
   const data = await response.json();
-  console.log("API Response Status:", data.choices[0].message.content);
+  const rawContent = data?.choices?.[0]?.message?.content ?? '';
+  //console.log("API Response Status:", rawContent);
 
   // D. 解析返回的 JSON 字符串并适配 DialogueLine 格式
-  return JSON.parse(data.choices[0].message.content);
+  return parseModelJson(rawContent);
 
   } catch (error) {
     console.error("Error analyzing paper:", error);
