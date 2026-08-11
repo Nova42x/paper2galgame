@@ -13,6 +13,8 @@ export interface PaperAnalysisResponse {
 export interface GameSettings {
   detailLevel: 'brief' | 'detailed' | 'academic';
   personality: 'tsundere' | 'gentle' | 'strict';
+  // When true, send the PDF as image attachments to the model (OpenAI-compatible payload)
+  sendAsImages?: boolean;
 }
 
 export enum GameState {
@@ -20,4 +22,14 @@ export enum GameState {
   PROCESSING,
   PLAYING,
   PAUSED,
+}
+
+// Notes
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  structured?: Record<string, any>;
 }

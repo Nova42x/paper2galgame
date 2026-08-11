@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DialogueLine } from '../types';
+import NotesPanel from './NotesPanel';
 
 interface GameScreenProps {
   script: DialogueLine[];
@@ -28,6 +29,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
   const [isTyping, setIsTyping] = useState(false);
   const [isAuto, setIsAuto] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [hideUI, setHideUI] = useState(false);
   const [jumpKey, setJumpKey] = useState(0); // Used to trigger jump animation
   
@@ -45,6 +47,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
 
   // Character sprite handling based on emotion
   const getSpriteUrl = (emotion: string) => {
+    if (!emotion) return CHARACTER_IMAGES['normal'];
     const key = emotion.toLowerCase();
     return CHARACTER_IMAGES[key] || CHARACTER_IMAGES['normal'];
   };
@@ -138,6 +141,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
           <div className="flex justify-end gap-2 mb-2 pointer-events-auto">
              <ControlButton active={isAuto} onClick={(e) => { e.stopPropagation(); setIsAuto(!isAuto); }} icon="fa-forward" label="Auto" />
              <ControlButton onClick={(e) => { e.stopPropagation(); setShowLog(true); }} icon="fa-history" label="Log" />
+             <ControlButton onClick={(e) => { e.stopPropagation(); setShowNotes(true); }} icon="fa-sticky-note" label="Notes" />
              <ControlButton onClick={(e) => { e.stopPropagation(); setHideUI(true); }} icon="fa-eye-slash" label="Hide" />
              <ControlButton onClick={(e) => { e.stopPropagation(); onExit(); }} icon="fa-door-open" label="Exit" />
           </div>
@@ -194,6 +198,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
             </div>
           </div>
         </div>
+      )}
+      {showNotes && (
+        <NotesPanel paperTitle={title} script={script} onClose={() => setShowNotes(false)} />
       )}
     </div>
   );
