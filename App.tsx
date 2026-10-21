@@ -15,13 +15,15 @@ export enum AppState {
 const App: React.FC = () => {
   const [currentState, setCurrentState] = useState<AppState>(AppState.TITLE);
   const [script, setScript] = useState<DialogueLine[]>([]);
+  const [paperId, setPaperId] = useState('');
   const [paperTitle, setPaperTitle] = useState<string>("");
   const [settings, setSettings] = useState<GameSettings>({
     detailLevel: 'detailed',
     personality: 'tsundere'
   });
 
-  const handleStartGame = (generatedScript: DialogueLine[], title: string) => {
+  const handleStartGame = (generatedScript: DialogueLine[], title: string, id: string) => {
+    setPaperId(id);
     setScript(generatedScript);
     setPaperTitle(title);
     setCurrentState(AppState.GAME);
@@ -89,7 +91,8 @@ const App: React.FC = () => {
         )}
         
         {currentState === AppState.GAME && (
-          <GameScreen 
+          <GameScreen key={paperId}
+            paperId={paperId}
             script={script} 
             title={paperTitle}
             onExit={handleBackToTitle} 

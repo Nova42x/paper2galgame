@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
+import { paperIdentity } from '../services/notesService';
 import { analyzePaper } from '../services/geminiService';
 import { DialogueLine, GameSettings } from '../types';
 
 interface UploadScreenProps {
-  onScriptGenerated: (script: DialogueLine[], title: string) => void;
+  onScriptGenerated: (script: DialogueLine[], title: string, paperId: string) => void;
   onBack: () => void;
   settings: GameSettings;
 }
@@ -28,12 +29,13 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({ onScriptGenerated, o
       // Simulate phases of "thinking" for better UX
       const thinkingTimer = setTimeout(() => setLoadingText("Consulting the spirits (Gemini Thinking)..."), 2000);
       
+      const paperId = await paperIdentity(await file.arrayBuffer());
       const result = await analyzePaper(file, settings);
       
       clearTimeout(thinkingTimer);
       setLoadingText("Transcribing logic to magic...");
       
-      onScriptGenerated(result.script, result.title);
+      onScriptGenerated(result.script, result.title, paperId);
     } catch (err) {
       setError("Failed to summon the explanation. Is the API Key valid?");
       setIsProcessing(false);

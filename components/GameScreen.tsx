@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { NotesPanel } from './NotesPanel';
 import { DialogueLine } from '../types';
 
 interface GameScreenProps {
+  paperId: string;
   script: DialogueLine[];
   title: string;
   onExit: () => void;
@@ -22,7 +24,9 @@ const CHARACTER_IMAGES: Record<string, string> = {
   proud: 'https://pic.imgdd.cc/item/693be044824c3b667e8d9b4e.png',
 };
 
-export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ script: initialScript, paperId, title, onExit }) => {
+  const [script, setScript] = useState(initialScript);
+  const [showNotes, setShowNotes] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -76,7 +80,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
 
   // Auto mode logic
   useEffect(() => {
-    if (isAuto && !isTyping && currentIndex < script.length - 1) {
+    if (!showNotes && !showLog && isAuto && !isTyping && currentIndex < script.length - 1) {
       autoTimerRef.current = window.setTimeout(() => {
         handleNext();
       }, autoDelay);
@@ -84,9 +88,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
     return () => {
       if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     };
-  }, [isAuto, isTyping, currentIndex, script.length]);
+  }, [isAuto, isTyping, currentIndex, script.length, showNotes, showLog]);
 
   const handleNext = () => {
+    if (showNotes || showLog) return;
     if (isTyping) {
       // Instant finish
       if (timerRef.current) clearInterval(timerRef.current);
@@ -136,6 +141,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
 
           {/* Control Bar */}
           <div className="flex justify-end gap-2 mb-2 pointer-events-auto">
+             <ControlButton onClick={(e) => { e.stopPropagation(); setIsAuto(false); setShowNotes(true); }} icon="fa-book" label="笔记 / 举手" />
              <ControlButton active={isAuto} onClick={(e) => { e.stopPropagation(); setIsAuto(!isAuto); }} icon="fa-forward" label="Auto" />
              <ControlButton onClick={(e) => { e.stopPropagation(); setShowLog(true); }} icon="fa-history" label="Log" />
              <ControlButton onClick={(e) => { e.stopPropagation(); setHideUI(true); }} icon="fa-eye-slash" label="Hide" />
@@ -176,6 +182,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ script, title, onExit })
         />
       )}
 
+      {showNotes && <NotesPanel key={paperId} paperId={paperId} script={script} index={currentIndex} onClose={() => setShowNotes(false)} onReturn={branch => { setIsAuto(false); setScript(branch.script); setCurrentIndex(branch.index); setShowNotes(false); }} />}
       {/* Backlog Modal */}
       {showLog && (
         <div className="absolute inset-0 z-50 bg-black/70 flex items-center justify-center p-10" onClick={(e) => e.stopPropagation()}>
